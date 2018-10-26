@@ -8,7 +8,6 @@
 #include <signal.h>
 #include <time.h>
 
-
 int shmid, semaid; // shared memory id & semaphore memory id
 sem_t *sema1;      // semaphore pointer
 char (*shm)[10];   // shared memory pointer
@@ -17,14 +16,17 @@ pid_t cPid;        // fish process
 timer_t timerid;   // timer
 FILE *text;        // pointer to output file
 
+// function definitions
 void checkProcess(pid_t cur, int *tPid);
 void endChildren(pid_t* pPid, pid_t* cPid);
 void display(char (*arr)[10]);
 void timer_up(union sigval arg);
 void timer_init(timer_t* timerid, struct itimerspec* time);
 
-// signal handler which catches various signals
-// and determines what to do
+/*
+Handles shared memory when a interrupt or abort
+signal is caught.
+*/
 void sig_handler(int signo) {
    if (signo == SIGINT) {
       printf("received SIGINT\n");
@@ -41,25 +43,16 @@ void sig_handler(int signo) {
       if (shmdt(shm) == -1) {
          perror("shmdt: shmdt failed");
       }
-      /*else {
-         printf("shmop: shmdt successful\n");
-      }*/
    
       // detach semaphore memory
       if (shmdt(sema1) == -1) {
       perror("shmdt: shmdt failed");
       }
-      /*else {
-      printf("shmop: shmdt successful\n");
-      }*/
    
       // destroy semaphore in semaphore memory
       if (sem_destroy(&(*sema1)) == -1) {
       perror("shmdt: shmdt failed");
       }
-      /*else {
-         printf("shmop: shmdt successful\n");
-      }*/
    
       // delete semaphore memory
       if (shmctl(semaid, IPC_RMID, 0) == -1) {
@@ -80,7 +73,7 @@ void sig_handler(int signo) {
    }
 }
 
-// kill all children processes
+// Cleans up all child processes
 void endChildren(pid_t* pPid, pid_t* cPid) {
    // kill all pellets
    while ((*pPid) != NULL) {
@@ -91,7 +84,7 @@ void endChildren(pid_t* pPid, pid_t* cPid) {
    kill(*cPid, SIGTERM);
 }
 
-
+// main function
 int main(int argc, char *argv[]) {
    key_t key = 0612;       // special key for shared memory
    key_t semaKey = 0642;   // special key for semaphore memory
@@ -101,7 +94,7 @@ int main(int argc, char *argv[]) {
    int status;             // temporary status variable
    struct itimerspec time; // timer time
    
-   // catches signal
+   // catches interrupt signal
    signal(SIGINT, sig_handler);
    
    // catches abort signal
@@ -121,36 +114,24 @@ int main(int argc, char *argv[]) {
       perror("shmget: shmget failed");
       exit(1);
    }
-   /*else {
-      (void) fprintf(stderr, "shmget: shmget returned %d\n", shmid);
-   }*/
    
    // create semaphore memory and check if successful
    if ((semaid = shmget(semaKey, sizeof(sem_t), IPC_CREAT | 0666)) == -1) {
       perror("shmget: shmget failed");
       exit(1);
    }
-   /*else {
-      (void) fprintf(stderr, "shmget: shmget returned %d\n", semaid);
-   }*/
    
    // attach shared memory
    if ((shm = shmat(shmid, NULL, 0)) == (char*) -1) {
       perror("shmat: shmat failed");
       exit(1);
    }
-   /*else {
-      printf("shmop: shmat successful\n");
-   }*/
    
    // attach semaphore to shared memory
    if ((sema1 = shmat(semaid, NULL, 0)) == (char*) -1) {
       perror("shmat: shmat failed");
       exit(1);
    }
-   /*else {
-      printf("shmop: shmat successful\n");
-   }*/
    
    // initialize shared memory with ' '
    for(int i = 0; i < 10; i++) {
@@ -232,7 +213,7 @@ int main(int argc, char *argv[]) {
    exit(0);
 }
 
-// display shared memory
+// prints the shared memory
 void display(char (*arr)[10]) {
    printf("\n");
    for(int i = 0; i < 10; i++) {
