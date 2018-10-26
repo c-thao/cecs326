@@ -7,13 +7,16 @@
 #include <semaphore.h>
 #include <signal.h>
 
-char (*fish)[10];   // fish variable
+char (*fish)[10];  // fish variable
 sem_t *sema; // semaphore variable
 
-void display(char (*arr)[10]);
+// function definitions
 int checkPellets(char (*arr)[10], int org);
 
-// signal handler
+/* 
+Handles shared memory cleanup when an interrupt or a
+termination signal is received.
+*/
 void sig_handler(int signo) {
    if (signo == SIGINT || signo == SIGTERM) {
       if (signo == SIGINT) {
@@ -41,6 +44,7 @@ void sig_handler(int signo) {
    }
 }
 
+// main function
 int main(int argc, char *argv[]) {
    key_t key = 0612;   // special key
    key_t semaKey = 0642; // special key for semaphore memory
@@ -48,13 +52,13 @@ int main(int argc, char *argv[]) {
    char space[10][10]; // size of array
    int fCol; // fish column
    
-   // catches signal
+   // catches interrupt signal
    signal(SIGINT, sig_handler);
    
    // catches abort signal
    signal(SIGABRT, sig_handler);
 
-   // catches abort signal
+   // catches termination signal
    signal(SIGTERM, sig_handler);
 
    
@@ -63,36 +67,24 @@ int main(int argc, char *argv[]) {
       perror("shmget: shmget failed");
       exit(1);
    }
-   /*else {
-      (void) fprintf(stderr, "shmget: shmget returned %d\n", shmid);
-   }*/
    
    // initialize fish
    if ((fish = shmat(shmid, NULL, 0)) == (char*) -1) {
       perror("shmat: shmat failed");
       exit(1);
    }
-   /*else {
-      printf("shmop: shmat successful fish is now active\n");
-   }*/
    
    // create semaphore memory and check if successful
    if ((semaid = shmget(semaKey, sizeof(sem_t), IPC_CREAT | 0666)) == -1) {
       perror("shmget: shmget failed");
       exit(1);
    }
-   /*else {
-      (void) fprintf(stderr, "shmget: shmget returned %d\n", semaid);
-   }*/
    
    // grab semaphore
    if ((sema = shmat(semaid, NULL, 0)) == (char*) -1) {
       perror("shmat: shmat failed");
       exit(1);
    }
-   /*else {
-      printf("shmop: shmat successful pallet is now active\n");
-   }*/
    
    // fish starting point
    fish[9][4] = 'f';
@@ -105,7 +97,6 @@ int main(int argc, char *argv[]) {
       // check to lock shared memory if head of wait queue
       while((shmctl(shmid, SHM_LOCK, shmctl(shmid, SHM_STAT, 0))) == -1);
       
-      //printf("\nfish moves");
       // check for closest pellet
       int pCol = checkPellets(fish, fCol);
       // update fish position to chase pellet
@@ -127,6 +118,7 @@ int main(int argc, char *argv[]) {
       sleep(1); // delay
    }
    printf("fish is done\n");
+   
    // detach shared memory
    if (shmdt(fish) == -1) {
       perror("shmdt: shmdt failed");
@@ -145,7 +137,11 @@ int main(int argc, char *argv[]) {
    exit(0);
 }
 
-// look for pellet
+/*
+Checks the shared memory to find the closest pellet
+and return the column number of the corresponding
+pellet.
+*/
 int checkPellets(char (*arr)[10], int org) {
    int pCol = org;
    int pRow = 0;
@@ -171,16 +167,3 @@ int checkPellets(char (*arr)[10], int org) {
    }
    return pCol;
 }
-
-// display shared memory
-void display(char (*arr)[10]) {
-   printf("\n");
-   for(int i = 0; i < 10; i++) {
-      printf("|");
-      for (int j = 0; j < 10; j++) {
-         printf("%c|", arr[i][j]);
-      }
-      printf("\n");
-   }
-}
-
