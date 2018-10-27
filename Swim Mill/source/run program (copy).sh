@@ -28,7 +28,7 @@ make
 echo "Checking to ensure program files were created..."
 if [ ! -f fish ] || [ ! -f pellet ] || [ ! -f swim_mill ]; then
     echo "There was a program during the creation process of the program files."
-    exit $exitCode
+    exit 1
 else
     echo "Program files were successfully created moving on..."
 fi
